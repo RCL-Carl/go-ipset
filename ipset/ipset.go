@@ -18,7 +18,6 @@ limitations under the License.
 package ipset
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -33,8 +32,6 @@ const minIpsetVersion = "6.0.0"
 
 var (
 	ipsetPath            string
-	errIpsetNotFound     = errors.New("Ipset utility not found")
-	errIpsetNotSupported = errors.New("Ipset utility version is not supported, requiring version >= 6.0")
 )
 
 // Params defines optional parameters for creating a new set.
@@ -55,26 +52,24 @@ type IPSet struct {
 	Timeout    int
 }
 
-func initCheck() error {
-	if ipsetPath == "" {
-		path, err := exec.LookPath("ipset")
-		if err != nil {
-			return errIpsetNotFound
-		}
-		ipsetPath = path
-		supportedVersion, err := getIpsetSupportedVersion()
-		if err != nil {
-			log.Warnf("Error checking ipset version, assuming version at least 6.0.0: %v", err)
-			supportedVersion = true
-		}
-		if supportedVersion {
-			return nil
-		} else {
-			return errIpsetNotSupported
-		}
+// Initialize the ipset package
+func init() { 
+	path, err := exec.LookPath("ipset")
+	if err != nil {
+		log.Fatalf("failed to find ipset on the path: %v", err)
 	}
-	return nil
-}
+
+	ipsetPath = path
+
+	supportedVersion, err := getIpsetSupportedVersion()
+	if err != nil {
+		log.Fatalf("failed checking ipset version. go-ipset requires ipset version %s or greater: %v", minIpsetVersion, err)
+	}
+	
+	if ! supportedVersion { 
+		log.Fatalf("go-ipset requires version %s", minIpsetVersion)
+	} 
+} 
 
 func (s *IPSet) createHashSet(name string) error {
 /*	out, err := exec.Command("/usr/bin/sudo",
@@ -112,10 +107,6 @@ func New(name string, hashtype string, p *Params) (*IPSet, error) {
 	// Check if hashtype is a type of hash
 	if !strings.HasPrefix(hashtype, "hash:") {
 		return nil, fmt.Errorf("not a hash type: %s", hashtype)
-	}
-
-	if err := initCheck(); err != nil {
-		return nil, err
 	}
 
 	s := IPSet{name, hashtype, p.HashFamily, p.HashSize, p.MaxElem, p.Timeout}
