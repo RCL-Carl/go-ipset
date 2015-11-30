@@ -196,6 +196,27 @@ func (s *IPSet) Destroy() error {
 	return nil
 }
 
+// List the known sets that have already been created
+// either by this library or via the ipset command line utility
+func ListSets() (ret []string, err error) {
+	out,err := exec.Command(ipsetPath, "list", "-n").CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error listing known sets: %v (%s)", err, out)
+		return
+	}
+	outStr := string(out)
+	splits := strings.Split(outStr, "\n")
+	ret = make([]string,0)
+	for i := range splits {
+		temp := strings.TrimSpace(splits[i])
+		if ( len(temp) > 0 ) {
+			ret = append(ret, temp)
+		}
+	}
+	err = nil
+	return
+}
+
 // Swap is used to hot swap two sets on-the-fly. Use with names of existing sets of the same type.
 func Swap(from, to string) error {
 	out, err := exec.Command(ipsetPath, "swap", from, to).Output()
